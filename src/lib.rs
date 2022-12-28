@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 use futures::StreamExt;
+use serde_json::Value;
+use serde::{Serialize,Deserialize};
 
 const ADDR: &str = "http://localhost:7955";
 
@@ -101,6 +103,20 @@ struct Status {
     id: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct StatusResponse {
+    version: String,
+    max_players: u16,
+    online_players: u16,
+    sample: Option<Vec<Player>>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Player {
+    name: String,
+    id: String,
+}
+
 #[async_trait]
 impl Command for Status {
     fn build_from_args(args: Vec<String>) -> Result<Box<dyn Command>, String> {
@@ -112,8 +128,17 @@ impl Command for Status {
 
     async fn execute(&self) {
         let res = reqwest::get(format!("{ADDR}/{}/{}", self.name, self.id)).await.unwrap();
+        let thing: StatusResponse = serde_json::from_str(res.text().await.unwrap().as_str()).unwrap();
 
-        println!("Body: {:?}", res);
+        // Format status into a reply
+        let mut s = String::new();
+        if let Some(players) = thing.sample.as_ref() {
+            s = players.iter().fold(String::from(":\n"), |a, b| format!("{a}\t{}\n", b.name));
+        }
+        let out = format!("{} [{}] [{}/{}]{s}", self.id, thing.version, thing.online_players, thing.max_players);
+        println!("{}", out);
+
+        //println!("Body: {:?}", thing);
     }
 }
 
