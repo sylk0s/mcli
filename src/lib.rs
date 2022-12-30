@@ -142,6 +142,84 @@ impl Command for Status {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct New {
+    name: String,
+    id: String,
+    path: Option<String>,
+    port: Option<u16>,
+    version: Option<String>,
+    server_type: Option<String>,
+}
+
+#[async_trait]
+impl Command for New {
+    fn build_from_args(args: Vec<String>) -> Result<Box<dyn Command>, String> {
+        if args.len() < 3 {
+            return Err::<Box<dyn Command>, String>(String::from("Too few args"));
+        }
+
+        let port = if let Some(string) = find_flag("p", &args) {
+            Some(string.parse::<u16>().unwrap()) 
+        } else {
+            None
+        };
+
+        // REDO this so that we can do flags
+        Ok(Box::new(New { 
+            name: args[1].clone(),
+            id: args[2].clone(),
+            path: find_flag("d", &args),
+            port,
+            version: find_flag("v", &args),
+            server_type: find_flag("t", &args),
+        }))
+    }
+
+    async fn execute(&self) {
+        println!("Sending...");
+        reqwest::Client::new().post(format!("{ADDR}/{}", self.name))
+            .body(serde_json::to_string(self).unwrap())
+            .send().await.expect("Failed to send command to the server");
+    }
+}
+
+fn find_flag(flag: &str, args: &Vec<String>) -> Option<String> {
+    if let Some(pos) = args.iter().position(|a| *a == format!("-{flag}")) {
+        Some(args[pos+1].clone())
+    } else {
+        None
+    }
+}
+
+struct List {
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct ListResponse {
+    servers: Vec<String>,
+}
+
+#[async_trait]
+impl Command for List {
+    fn build_from_args(args: Vec<String>) -> Result<Box<dyn Command>, String> {
+        if args.len() < 2 {
+            return Err::<Box<dyn Command>, String>(String::from("Too few args"));
+        }
+
+        Ok(Box::new(List { name: args[1].clone() }))
+    }
+
+    async fn execute(&self) {
+        let res = reqwest::get(format!("{ADDR}/{}", self.name)).await.unwrap();
+        let res_str: ListResponse = serde_json::from_str(&res.text().await.unwrap()).unwrap();
+        let output_str = res_str.servers.iter().fold(String::from("Servers:\n"), |a, b| { format!("{a}{b}\n") });
+        
+        println!("{}", output_str);
+    }
+}
+
 pub fn match_command(args: Vec<String>) -> Option<Result<Box<dyn Command>, String>> {
     match args[1].as_str() {
         "start" => Some(Start::build_from_args(args)),
@@ -149,6 +227,8 @@ pub fn match_command(args: Vec<String>) -> Option<Result<Box<dyn Command>, Strin
         "exec" => Some(Exec::build_from_args(args)),
         "output" => Some(Output::build_from_args(args)),
         "status" => Some(Status::build_from_args(args)),
+        "new" => Some(New::build_from_args(args)),
+        "list" => Some(List::build_from_args(args)),
         _ => None,
     }
 }
