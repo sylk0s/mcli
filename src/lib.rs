@@ -220,6 +220,29 @@ impl Command for List {
     }
 }
 
+struct CleanOutput {
+    name: String,
+    id: String,
+}
+
+#[async_trait]
+impl Command for CleanOutput {
+    fn build_from_args(args: Vec<String>) -> Result<Box<dyn Command>, String> {
+        if args.len() < 3 {
+            return Err::<Box<dyn Command>, String>(String::from("Too few args"));
+        }
+        Ok(Box::new(CleanOutput { name: args[1].clone(), id: args[2].clone() }))
+    }
+
+    async fn execute(&self) {
+        let mut stream = reqwest::get(format!("{ADDR}/{}/{}", self.name, self.id)).await.unwrap().bytes_stream();
+
+        while let Some(msg) = stream.next().await {
+            println!("{}", std::str::from_utf8(&msg.unwrap()).unwrap());
+        }
+    }
+}
+
 pub fn match_command(args: Vec<String>) -> Option<Result<Box<dyn Command>, String>> {
     match args[1].as_str() {
         "start" => Some(Start::build_from_args(args)),
@@ -229,6 +252,7 @@ pub fn match_command(args: Vec<String>) -> Option<Result<Box<dyn Command>, Strin
         "status" => Some(Status::build_from_args(args)),
         "new" => Some(New::build_from_args(args)),
         "list" => Some(List::build_from_args(args)),
+        "cleanout" => Some(CleanOutput::build_from_args(args)),
         _ => None,
     }
 }
