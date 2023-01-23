@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use futures::StreamExt;
-use serde_json::Value;
 use serde::{Serialize,Deserialize};
 
 const ADDR: &str = "http://localhost:7955";
@@ -10,7 +9,6 @@ pub trait Command {
     async fn execute(&self);
     fn build_from_args(args: Vec<String>) -> Result<Box<dyn Command>, String> where Self: Sized;
 }
-
 struct Start {
     name: String,
     id: String,
@@ -27,7 +25,7 @@ impl Command for Start {
     }
 
     async fn execute(&self) {
-        reqwest::Client::new().put(format!("{ADDR}/{}/{}", self.name, self.id)).send().await.expect("Failed to start the server");
+        println!("{:?}", reqwest::Client::new().put(format!("{ADDR}/{}/{}", self.name, self.id)).send().await.unwrap());
     }
 
 }
@@ -47,7 +45,7 @@ impl Command for Stop {
     }
 
     async fn execute(&self) {
-        reqwest::Client::new().put(format!("{ADDR}/{}/{}", self.name, self.id)).send().await.expect("Failed to start the server");
+        println!("{:?}", reqwest::Client::new().put(format!("{ADDR}/{}/{}", self.name, self.id)).send().await.unwrap());
     }
 }
 
@@ -69,9 +67,9 @@ impl Command for Exec {
     async fn execute(&self) {
         let body = format!("{{\"args\":[{}]}}",self.cmd.iter().fold(String::new(), |a, b| format!("{a} \"{b}\",") ).trim().trim_end_matches(","));
         println!("exec {body}");
-        reqwest::Client::new().post(format!("{ADDR}/{}/{}", self.name, self.id))
+        println!("{:?}", reqwest::Client::new().post(format!("{ADDR}/{}/{}", self.name, self.id))
             .body(body)
-            .send().await.expect("Failed to send command to the server");
+            .send().await);
     }
 }
 
@@ -128,15 +126,21 @@ impl Command for Status {
 
     async fn execute(&self) {
         let res = reqwest::get(format!("{ADDR}/{}/{}", self.name, self.id)).await.unwrap();
-        let thing: StatusResponse = serde_json::from_str(res.text().await.unwrap().as_str()).unwrap();
+        if res.status().is_success() {
+            println!("aaa");
+            let res1 = res.text().await.unwrap();
+            let thing: StatusResponse = serde_json::from_str(&res1).unwrap();
 
-        // Format status into a reply
-        let mut s = String::new();
-        if let Some(players) = thing.sample.as_ref() {
-            s = players.iter().fold(String::from(":\n"), |a, b| format!("{a}\t{}\n", b.name));
+            // Format status into a reply
+            if let Some(players) = thing.sample.as_ref() {
+                let mut s = String::new();
+                s = players.iter().fold(String::from(":\n"), |a, b| format!("{a}\t{}\n", b.name));
+                let out = format!("{} [{}] [{}/{}]{}", self.id, thing.version, thing.online_players, thing.max_players, s);
+                println!("{}", out);
+            }
+        } else {
+            println!("{:?}", res.text().await.unwrap());
         }
-        let out = format!("{} [{}] [{}/{}]{s}", self.id, thing.version, thing.online_players, thing.max_players);
-        println!("{}", out);
 
         //println!("Body: {:?}", thing);
     }
@@ -178,9 +182,9 @@ impl Command for New {
 
     async fn execute(&self) {
         println!("Sending...");
-        reqwest::Client::new().post(format!("{ADDR}/{}", self.name))
+        println!("{:?}", reqwest::Client::new().post(format!("{ADDR}/{}", self.name))
             .body(serde_json::to_string(self).unwrap())
-            .send().await.expect("Failed to send command to the server");
+            .send().await.unwrap().text().await.unwrap());
     }
 }
 
