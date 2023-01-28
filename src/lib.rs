@@ -252,11 +252,11 @@ pub fn match_command(args: Vec<String>) -> Option<Result<Box<dyn Command>, Strin
         "start" => Some(Start::build_from_args(args)),
         "stop" => Some(Stop::build_from_args(args)),
         "exec" => Some(Exec::build_from_args(args)),
-        "output" => Some(Output::build_from_args(args)),
+        "fullout" => Some(Output::build_from_args(args)),
         "status" => Some(Status::build_from_args(args)),
         "new" => Some(New::build_from_args(args)),
         "list" => Some(List::build_from_args(args)),
-        "cleanout" => Some(CleanOutput::build_from_args(args)),
+        "out" => Some(CleanOutput::build_from_args(args)),
         _ => None,
     }
 }
