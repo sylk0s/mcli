@@ -127,17 +127,15 @@ impl Command for Status {
     async fn execute(&self) {
         let res = reqwest::get(format!("{ADDR}/{}/{}", self.name, self.id)).await.unwrap();
         if res.status().is_success() {
-            println!("aaa");
             let res1 = res.text().await.unwrap();
             let thing: StatusResponse = serde_json::from_str(&res1).unwrap();
 
             // Format status into a reply
-            if let Some(players) = thing.sample.as_ref() {
-                let mut s = String::new();
-                s = players.iter().fold(String::from(":\n"), |a, b| format!("{a}\t{}\n", b.name));
-                let out = format!("{} [{}] [{}/{}]{}", self.id, thing.version, thing.online_players, thing.max_players, s);
-                println!("{}", out);
-            }
+            let s = if let Some(players) = thing.sample.as_ref() {
+                players.iter().fold(String::from(":\n"), |a, b| format!("{a}\t{}\n", b.name))
+            } else { String::from("\n") };
+            let out = format!("{} [{}] [{}/{}]{}", self.id, thing.version, thing.online_players, thing.max_players, s);
+            println!("{}", out);
         } else {
             println!("{:?}", res.text().await.unwrap());
         }
