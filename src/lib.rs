@@ -1,20 +1,12 @@
 use clap::{Parser, Subcommand};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 const ADDR: &str = "http://localhost:7955";
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// Optional name to operate on
-    pub name: Option<String>,
-
-    /// Sets a custom config file
-    #[arg(short, long, value_name = "FILE")]
-    pub config: Option<PathBuf>,
-
     /// Turn debugging information on
     #[arg(short, long, action = clap::ArgAction::Count)]
     pub debug: u8,
@@ -25,12 +17,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// does testing things
-    Test {
-        /// lists test values
-        #[arg(short, long)]
-        list: bool,
-    },
+    /// Starts a server
     Start {
         /// The name of the server to start
         #[arg(short, long)]
@@ -40,6 +27,7 @@ pub enum Commands {
         #[arg(short, long)]
         id: String,
     },
+    /// Stops a server
     Stop {
         /// The name of the server to stop
         #[arg(short, long)]
@@ -49,6 +37,7 @@ pub enum Commands {
         #[arg(short, long)]
         id: String,
     },
+    /// Executes a command on a server
     Exec {
         /// The name of the server to execute on
         #[arg(short, long)]
@@ -62,6 +51,7 @@ pub enum Commands {
         #[arg(short, long)]
         cmd: Vec<String>,
     },
+    /// Gets output from a server
     Output {
         /// The name of the server to get output from
         #[arg(short, long)]
@@ -71,6 +61,7 @@ pub enum Commands {
         #[arg(short, long)]
         id: String,
     },
+    /// Gets status from a server
     Status {
         /// The name of the server to get status from
         #[arg(short, long)]
@@ -80,6 +71,7 @@ pub enum Commands {
         #[arg(short, long)]
         id: String,
     },
+    /// Creates a new server
     New {
         /// The name of the server to create
         #[arg(short, long)]
@@ -105,11 +97,13 @@ pub enum Commands {
         #[arg(short, long)]
         server_type: Option<String>,
     },
+    /// Lists servers
     List {
         /// The name of the server to list
         #[arg(short, long)]
         name: String,
     },
+    /// Gets a cleaned output from a server
     CleanOutput {
         /// The name of the server to get output from
         #[arg(short, long)]
@@ -124,13 +118,6 @@ pub enum Commands {
 impl Commands {
     pub async fn execute(&self) {
         match self {
-            Commands::Test { list } => {
-                if *list {
-                    println!("Listing test values");
-                } else {
-                    println!("Testing");
-                }
-            }
             Commands::Start { name, id } => {
                 println!("Starting {} {}", name, id);
                 println!(
